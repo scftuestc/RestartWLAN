@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
-title 网卡重启小工具 v3
+title 网卡重启小工具 v1.4
 set ROUTER=192.168.0.1
 set TOGGLED=0
 set RESTARTED=0
@@ -14,7 +14,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo  ================================================
-echo               网 卡 重 启 小 工 具  v3
+echo              网 卡 重 启 小 工 具  v1.4
 echo           丢包检测  /  网卡重启  /  省电切换
 echo  ================================================
 
@@ -32,13 +32,16 @@ echo.
 echo  ------------------------------------------------
 echo   [2/6] 丢包测试 - 前
 echo  ------------------------------------------------
-echo   目标: 路由器 %ROUTER%, 发送 10 个包
+echo   目标: 路由器 %ROUTER%, 发送 20 个包
 call :TESTLOSS
 if errorlevel 1 (
     echo      × 结论: 链路异常, 建议重启网卡。
 ) else (
     echo      √ 结论: 链路正常, 本次也许不用重启。
 )
+echo.
+echo   国内网站连通性 (各 4 个包, 汇总如下):
+call :SITETEST
 echo.
 set "ANS="
 set /p "ANS=   >> 继续? (y=继续, 回车或N=退出): "
@@ -48,8 +51,9 @@ echo.
 echo  ------------------------------------------------
 echo   [3/6] 省电模式切换 (可选)
 echo  ------------------------------------------------
-echo   当前值见第 1 步输出。已禁用 = 日常推荐;
-echo   Auto = 已知会丢包, 一般只在验证系统更新修复时临时使用。
+echo   当前值见第 1 步输出。两种模式说明:
+echo      已禁用 : 日常推荐, 本机实测 0 丢包
+echo      Auto   : 已知会丢包, 仅用于验证系统更新是否修复
 set "ANS="
 set /p "ANS=   >> 切换? (y=切换, 回车或N=保持现状): "
 if /i "!ANS!"=="y" call :TOGGLE
@@ -93,7 +97,11 @@ if not errorlevel 1 set TOGGLED=1
 goto :eof
 
 :TESTLOSS
-powershell -NoProfile -Command "$r = @(ping -n 10 %ROUTER% | Select-String 'TTL='); if ($r.Count -eq 10) { '   丢包 : 0/10'; exit 0 } else { '   丢包 : ' + (10 - $r.Count) + '/10'; exit 1 }"
+powershell -NoProfile -Command "$r = @(ping -n 20 %ROUTER% | Select-String 'TTL='); if ($r.Count -eq 20) { '   丢包 : 0/20'; exit 0 } else { '   丢包 : ' + (20 - $r.Count) + '/20'; exit 1 }"
+goto :eof
+
+:SITETEST
+powershell -NoProfile -Command "$r = @(); foreach ($s in 'www.baidu.com','www.bilibili.com','www.qq.com','www.taobao.com') { $o = ping -n 4 $s; $t = @($o | Where-Object { $_ -match 'TTL=' } | ForEach-Object { if ($_ -match '=\s*<*(\d+)\s*ms') { [int]$Matches[1] } }); if ($t.Count -gt 0) { $avg = [math]::Round(($t | Measure-Object -Average).Average); $r += ('   {0,-18} {1}/4 通, 平均 {2} ms' -f $s, $t.Count, $avg) } else { $r += ('   {0,-18} 0/4 通 (超时或域名解析失败)' -f $s) } }; $r"
 goto :eof
 
 :END
