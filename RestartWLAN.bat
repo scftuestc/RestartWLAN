@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
-title 网卡重启小工具 v1.4
+title 网卡重启小工具 v1.5
 set ROUTER=192.168.0.1
 set TOGGLED=0
 set RESTARTED=0
@@ -14,8 +14,8 @@ if %errorlevel% neq 0 (
 
 echo.
 echo  ================================================
-echo              网 卡 重 启 小 工 具  v1.4
-echo           丢包检测  /  网卡重启  /  省电切换
+echo              网 卡 重 启 小 工 具  v1.5
+echo        丢包检测  /  网站连通  /  网卡重启  /  省电切换
 echo  ================================================
 
 echo.
@@ -33,15 +33,17 @@ echo  ------------------------------------------------
 echo   [2/6] 丢包测试 - 前
 echo  ------------------------------------------------
 echo   目标: 路由器 %ROUTER%, 发送 20 个包
+set LOSTF=0
 call :TESTLOSS
-if errorlevel 1 (
+if errorlevel 1 set LOSTF=1
+if "!LOSTF!"=="1" (
     echo      × 结论: 链路异常, 建议重启网卡。
 ) else (
     echo      √ 结论: 链路正常, 本次也许不用重启。
 )
 echo.
-echo   国内网站连通性 (各 4 个包, 汇总如下):
-call :SITETEST
+echo   国内网站连通性 (8 个网站, 各 4 个包, 汇总如下):
+call :SITETEST !LOSTF!
 echo.
 set "ANS="
 set /p "ANS=   >> 继续? (y=继续, 回车或N=退出): "
@@ -83,12 +85,20 @@ echo.
 echo  ------------------------------------------------
 echo   [6/6] 丢包测试 - 后
 echo  ------------------------------------------------
+echo   目标: 路由器 %ROUTER%, 发送 20 个包
+set LOSTF=0
 call :TESTLOSS
-if errorlevel 1 (
-    echo      × 结论: 仍有丢包, 这次没有修好, 请把本窗口截图后找我深入排查。
+if errorlevel 1 set LOSTF=1
+if "!LOSTF!"=="1" (
+    echo      × 结论: 仍有丢包, 重启网卡没有解决。
+    echo        建议: 使用专业网络诊断工具, 如 PingPlotter 或 Wireshark;
+    echo        或联系运营商 / 寻求专业技术支持。
 ) else (
     echo      √ 结论: 0 丢包, 修复成功。
 )
+echo.
+echo   国内网站连通性 (重启后复测, 8 个网站, 各 4 个包):
+call :SITETEST !LOSTF!
 goto END
 
 :TOGGLE
@@ -101,7 +111,7 @@ powershell -NoProfile -Command "$r = @(ping -n 20 %ROUTER% | Select-String 'TTL=
 goto :eof
 
 :SITETEST
-powershell -NoProfile -Command "$r = @(); foreach ($s in 'www.baidu.com','www.bilibili.com','www.qq.com','www.taobao.com') { $o = ping -n 4 $s; $t = @($o | Where-Object { $_ -match 'TTL=' } | ForEach-Object { if ($_ -match '=\s*<*(\d+)\s*ms') { [int]$Matches[1] } }); if ($t.Count -gt 0) { $avg = [math]::Round(($t | Measure-Object -Average).Average); $r += ('   {0,-18} {1}/4 通, 平均 {2} ms' -f $s, $t.Count, $avg) } else { $r += ('   {0,-18} 0/4 通 (超时或域名解析失败)' -f $s) } }; $r"
+powershell -NoProfile -Command "$loss = %1; $fail = 0; $r = @(); foreach ($s in 'www.baidu.com','www.bilibili.com','www.qq.com','www.taobao.com','www.163.com','www.jd.com','www.aliyun.com','www.douyin.com') { $t = @(ping -n 4 $s | Where-Object { $_ -match 'TTL=' } | ForEach-Object { if ($_ -match '=\s*<*(\d+)\s*ms') { [int]$Matches[1] } }); if ($t.Count -gt 0) { $avg = [math]::Round(($t | Measure-Object -Average).Average); $r += ('   {0,-18} {1}/4 通, 平均 {2} ms' -f $s, $t.Count, $avg) } else { $fail++; $r += ('   {0,-18} 0/4 通 (超时或域名解析失败)' -f $s) } }; $r; ''; if (-not $loss -and $fail -gt 0) { '   [i] 注意: 链路 0 丢包, 但有 ' + $fail + ' 个网站不通。这不是网卡丢包, 可能原因:'; '       - DNS 解析失败, 最常见, 可尝试公共 DNS 如 223.5.5.5'; '       - 目标网站禁用 ping 或防火墙拦截 ICMP'; '       - 运营商骨干网局部异常'; '       - 本机安全软件拦截' }"
 goto :eof
 
 :END
