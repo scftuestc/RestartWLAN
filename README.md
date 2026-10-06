@@ -14,7 +14,7 @@ Windows 下的 PowerShell 小工具: 一键完成「网络信息 → 丢包诊�
 
 ## 使用方法
 
-下载`RestartWLAN.bat`文件, 双击 `RestartWLAN.bat`(它只是 3 行启动器, 负责以 `-ExecutionPolicy Bypass` 拉起真正的 `RestartWLAN.ps1`) → 在 UAC 弹窗点「是」→ 按提示输入 y 继续, 回车或 N 随时退出, 结尾按 Enter 关闭窗口。
+下载`RestartWLAN.bat`和`RestartWLAN.ps1`文件, 双击 `RestartWLAN.bat`(它来拉起 `RestartWLAN.ps1`)→ 在 UAC 弹窗点「是」→ 按提示输入 y 继续, 回车或 N 随时退出, 结尾按 Enter 关闭窗口。
 
 也可以在命令行直接执行:
 
