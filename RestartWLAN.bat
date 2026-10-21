@@ -1,2 +1,4 @@
 @echo off
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0RestartWLAN.ps1"
+title RestartWLAN
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0RestartWLAN.ps1" %*
+exit /b %errorlevel%
